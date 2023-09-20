@@ -69,7 +69,6 @@ func (r *azureManagedControlPlaneService) Reconcile(ctx context.Context) error {
 			return errors.Wrapf(err, "failed to reconcile AzureManagedControlPlane service %s", service.Name())
 		}
 	}
-
 	if err := r.reconcileKubeconfig(ctx); err != nil {
 		return errors.Wrap(err, "failed to reconcile kubeconfig secret")
 	}
@@ -104,6 +103,11 @@ func (r *azureManagedControlPlaneService) reconcileKubeconfig(ctx context.Contex
 
 	// Always update credentials in case of rotation
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.kubeclient, &kubeConfigSecret, func() error {
+		if nil == kubeConfigSecret.Labels {
+			kubeConfigSecret.Labels = make(map[string]string)
+		}
+		kubeConfigSecret.Labels["cluster.x-k8s.io/cluster-name"] = r.scope.ManagedClusterSpec().ResourceName()
+
 		kubeConfigSecret.Data = map[string][]byte{
 			secret.KubeconfigDataName: kubeConfigData,
 		}
