@@ -156,8 +156,13 @@ func buildAgentPoolSpec(managedControlPlane *infrav1.AzureManagedControlPlane,
 	managedMachinePool *infrav1.AzureManagedMachinePool,
 	agentPoolAnnotations map[string]string) azure.ResourceSpecGetter {
 	var normalizedVersion *string
+
 	if machinePool.Spec.Template.Spec.Version != nil {
 		v := strings.TrimPrefix(*machinePool.Spec.Template.Spec.Version, "v")
+		normalizedVersion = &v
+	}
+	if normalizedVersion == nil {
+		v := strings.TrimPrefix(managedControlPlane.Spec.Version, "v")
 		normalizedVersion = &v
 	}
 

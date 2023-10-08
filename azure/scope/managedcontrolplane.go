@@ -19,6 +19,7 @@ package scope
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -295,6 +296,17 @@ func (s *ManagedControlPlaneScope) NodeNatGateway() infrav1.NatGateway {
 
 // SubnetSpecs returns the subnets specs.
 func (s *ManagedControlPlaneScope) SubnetSpecs() []azure.ResourceSpecGetter {
+	var routeTableName string
+	if s.ControlPlane.Spec.NetworkPlugin != nil && *s.ControlPlane.Spec.NetworkPlugin == "kubenet" {
+		for _, pool := range s.ManagedMachinePools {
+			if pool.InfraMachinePool == nil {
+				continue
+			}
+			if pool.InfraMachinePool.Status.Ready {
+				routeTableName = fmt.Sprintf("%s-routetable", pool.InfraMachinePool.Name)
+			}
+		}
+	}
 	return []azure.ResourceSpecGetter{
 		&subnets.SubnetSpec{
 			Name:              s.NodeSubnet().Name,
@@ -306,6 +318,7 @@ func (s *ManagedControlPlaneScope) SubnetSpecs() []azure.ResourceSpecGetter {
 			IsVNetManaged:     s.IsVnetManaged(),
 			Role:              infrav1.SubnetNode,
 			ServiceEndpoints:  s.NodeSubnet().ServiceEndpoints,
+			RouteTableName:    routeTableName,
 		},
 	}
 }

@@ -23,8 +23,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	"k8s.io/utils/pointer"
+
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-azure/azure"
+	"sigs.k8s.io/cluster-api-provider-azure/util/tele"
 )
 
 // SubnetSpec defines the specification for a Subnet.
@@ -118,6 +120,9 @@ func (s *SubnetSpec) Parameters(ctx context.Context, existing interface{}) (para
 
 // shouldUpdate returns true if an existing subnet should be updated.
 func (s *SubnetSpec) shouldUpdate(existingSubnet network.Subnet) bool {
+	_, log, done := tele.StartSpanWithLogger(context.Background(), "subnets.Service.shouldUpdate")
+	defer done()
+
 	// No modifications for non-managed subnets
 	if !s.IsVNetManaged {
 		return false
@@ -130,19 +135,23 @@ func (s *SubnetSpec) shouldUpdate(existingSubnet network.Subnet) bool {
 
 	// Update the subnet if the service endpoints changed.
 	if existingSubnet.ServiceEndpoints != nil || len(s.ServiceEndpoints) > 0 {
-		var existingServiceEndpoints []network.ServiceEndpointPropertiesFormat
+		existingServiceEndpoints := make([]network.ServiceEndpointPropertiesFormat, 0)
 		if existingSubnet.ServiceEndpoints != nil {
 			for _, se := range *existingSubnet.ServiceEndpoints {
 				existingServiceEndpoints = append(existingServiceEndpoints, network.ServiceEndpointPropertiesFormat{Service: se.Service, Locations: se.Locations})
 			}
 		}
 		newServiceEndpoints := make([]network.ServiceEndpointPropertiesFormat, len(s.ServiceEndpoints))
-		for _, se := range s.ServiceEndpoints {
+		for i, se := range s.ServiceEndpoints {
 			se := se
-			newServiceEndpoints = append(newServiceEndpoints, network.ServiceEndpointPropertiesFormat{Service: pointer.String(se.Service), Locations: &se.Locations})
+			newServiceEndpoints[i] = network.ServiceEndpointPropertiesFormat{Service: pointer.String(se.Service), Locations: &se.Locations}
 		}
 
 		diff := cmp.Diff(newServiceEndpoints, existingServiceEndpoints)
+		if diff != "" {
+			log.V(4).Info("found a diff between the desired spec and the existing subnet", "difference", diff)
+		}
+
 		return diff != ""
 	}
 	return false
