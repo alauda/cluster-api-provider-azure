@@ -52,7 +52,10 @@ import (
 	"sigs.k8s.io/cluster-api-provider-azure/util/tele"
 )
 
-const resourceHealthWarningInitialGracePeriod = 1 * time.Hour
+const (
+	resourceHealthWarningInitialGracePeriod = 1 * time.Hour
+	annotationReservedResourcesKey          = "cpaas.io/reserved-resources-on-delete-cluster"
+)
 
 // ManagedControlPlaneScopeParams defines the input parameters used to create a new managed
 // control plane.
@@ -859,4 +862,18 @@ func (s *ManagedControlPlaneScope) RoleAssignmentSpecs(principalID *string) []az
 		}
 	}
 	return result
+}
+
+// IsResourceReservedOnDeleteCluster returns true if resource is need to be reserved when deleting cluster.
+func (s *ManagedControlPlaneScope) IsResourceReservedOnDeleteCluster(resource string) bool {
+	var resources []string
+	if value, ok := s.ControlPlane.Annotations[annotationReservedResourcesKey]; ok {
+		resources = strings.Split(value, ",")
+	}
+	for _, r := range resources {
+		if r == resource {
+			return true
+		}
+	}
+	return false
 }
