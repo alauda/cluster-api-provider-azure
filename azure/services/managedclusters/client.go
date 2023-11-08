@@ -24,6 +24,7 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	azureautorest "github.com/Azure/go-autorest/autorest/azure"
 	"github.com/pkg/errors"
+
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-azure/azure"
 	"sigs.k8s.io/cluster-api-provider-azure/util/reconciler"
@@ -35,14 +36,14 @@ type CredentialGetter interface {
 	GetCredentials(context.Context, string, string) ([]byte, error)
 }
 
-// azureClient contains the Azure go-sdk Client.
-type azureClient struct {
+// AzureClient contains the Azure go-sdk Client.
+type AzureClient struct {
 	managedclusters containerservice.ManagedClustersClient
 }
 
-// newClient creates a new managed cluster client from an authorizer.
-func newClient(auth azure.Authorizer) *azureClient {
-	return &azureClient{
+// NewClient creates a new managed cluster client from an authorizer.
+func NewClient(auth azure.Authorizer) *AzureClient {
+	return &AzureClient{
 		managedclusters: newManagedClustersClient(auth.SubscriptionID(), auth.BaseURI(), auth.Authorizer()),
 	}
 }
@@ -55,16 +56,16 @@ func newManagedClustersClient(subscriptionID string, baseURI string, authorizer 
 }
 
 // Get gets a managed cluster.
-func (ac *azureClient) Get(ctx context.Context, spec azure.ResourceSpecGetter) (result interface{}, err error) {
-	ctx, _, done := tele.StartSpanWithLogger(ctx, "managedclusters.azureClient.Get")
+func (ac *AzureClient) Get(ctx context.Context, spec azure.ResourceSpecGetter) (result interface{}, err error) {
+	ctx, _, done := tele.StartSpanWithLogger(ctx, "managedclusters.AzureClient.Get")
 	defer done()
 
 	return ac.managedclusters.Get(ctx, spec.ResourceGroupName(), spec.ResourceName())
 }
 
 // GetCredentials fetches the admin kubeconfig for a managed cluster.
-func (ac *azureClient) GetCredentials(ctx context.Context, resourceGroupName, name string) ([]byte, error) {
-	ctx, _, done := tele.StartSpanWithLogger(ctx, "managedclusters.azureClient.GetCredentials")
+func (ac *AzureClient) GetCredentials(ctx context.Context, resourceGroupName, name string) ([]byte, error) {
+	ctx, _, done := tele.StartSpanWithLogger(ctx, "managedclusters.AzureClient.GetCredentials")
 	defer done()
 
 	credentialList, err := ac.managedclusters.ListClusterAdminCredentials(ctx, resourceGroupName, name, "")
@@ -82,8 +83,8 @@ func (ac *azureClient) GetCredentials(ctx context.Context, resourceGroupName, na
 // CreateOrUpdateAsync creates or updates a managed cluster.
 // It sends a PUT request to Azure and if accepted without error, the func will return a Future which can be used to track the ongoing
 // progress of the operation.
-func (ac *azureClient) CreateOrUpdateAsync(ctx context.Context, spec azure.ResourceSpecGetter, parameters interface{}) (result interface{}, future azureautorest.FutureAPI, err error) {
-	ctx, _, done := tele.StartSpanWithLogger(ctx, "managedclusters.azureClient.CreateOrUpdate")
+func (ac *AzureClient) CreateOrUpdateAsync(ctx context.Context, spec azure.ResourceSpecGetter, parameters interface{}) (result interface{}, future azureautorest.FutureAPI, err error) {
+	ctx, _, done := tele.StartSpanWithLogger(ctx, "managedclusters.AzureClient.CreateOrUpdate")
 	defer done()
 
 	managedcluster, ok := parameters.(containerservice.ManagedCluster)
@@ -128,8 +129,8 @@ func (ac *azureClient) CreateOrUpdateAsync(ctx context.Context, spec azure.Resou
 // DeleteAsync deletes a managed cluster asynchronously. DeleteAsync sends a DELETE
 // request to Azure and if accepted without error, the func will return a Future which can be used to track the ongoing
 // progress of the operation.
-func (ac *azureClient) DeleteAsync(ctx context.Context, spec azure.ResourceSpecGetter) (future azureautorest.FutureAPI, err error) {
-	ctx, _, done := tele.StartSpanWithLogger(ctx, "managedclusters.azureClient.DeleteAsync")
+func (ac *AzureClient) DeleteAsync(ctx context.Context, spec azure.ResourceSpecGetter) (future azureautorest.FutureAPI, err error) {
+	ctx, _, done := tele.StartSpanWithLogger(ctx, "managedclusters.AzureClient.DeleteAsync")
 	defer done()
 
 	deleteFuture, err := ac.managedclusters.Delete(ctx, spec.ResourceGroupName(), spec.ResourceName())
@@ -152,16 +153,16 @@ func (ac *azureClient) DeleteAsync(ctx context.Context, spec azure.ResourceSpecG
 }
 
 // IsDone returns true if the long-running operation has completed.
-func (ac *azureClient) IsDone(ctx context.Context, future azureautorest.FutureAPI) (bool, error) {
-	ctx, _, done := tele.StartSpanWithLogger(ctx, "managedclusters.azureClient.IsDone")
+func (ac *AzureClient) IsDone(ctx context.Context, future azureautorest.FutureAPI) (bool, error) {
+	ctx, _, done := tele.StartSpanWithLogger(ctx, "managedclusters.AzureClient.IsDone")
 	defer done()
 
 	return future.DoneWithContext(ctx, ac.managedclusters)
 }
 
 // Result fetches the result of a long-running operation future.
-func (ac *azureClient) Result(ctx context.Context, future azureautorest.FutureAPI, futureType string) (result interface{}, err error) {
-	_, _, done := tele.StartSpanWithLogger(ctx, "managedclusters.azureClient.Result")
+func (ac *AzureClient) Result(ctx context.Context, future azureautorest.FutureAPI, futureType string) (result interface{}, err error) {
+	_, _, done := tele.StartSpanWithLogger(ctx, "managedclusters.AzureClient.Result")
 	defer done()
 
 	if future == nil {

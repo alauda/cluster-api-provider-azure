@@ -56,7 +56,7 @@ type Service struct {
 
 // New creates a new service.
 func New(scope ManagedClusterScope) *Service {
-	client := newClient(scope)
+	client := NewClient(scope)
 	return &Service{
 		Scope:            scope,
 		Reconciler:       async.New(scope, client, client),
