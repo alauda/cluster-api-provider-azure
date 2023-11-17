@@ -20,19 +20,22 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"sigs.k8s.io/cluster-api/util/secret"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
 	"sigs.k8s.io/cluster-api-provider-azure/azure"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/groups"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/managedclusters"
+	"sigs.k8s.io/cluster-api-provider-azure/azure/services/managedroleassignments"
+	"sigs.k8s.io/cluster-api-provider-azure/azure/services/managedroledefinitions"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/privateendpoints"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/resourcehealth"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/subnets"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/tags"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/virtualnetworks"
 	"sigs.k8s.io/cluster-api-provider-azure/util/tele"
-	"sigs.k8s.io/cluster-api/util/secret"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // azureManagedControlPlaneService contains the services required by the cluster controller.
@@ -55,6 +58,8 @@ func newAzureManagedControlPlaneReconciler(scope *scope.ManagedControlPlaneScope
 			privateendpoints.New(scope),
 			tags.New(scope),
 			resourcehealth.New(scope),
+			managedroledefinitions.New(scope),
+			managedroleassignments.New(scope),
 		},
 	}
 }
@@ -103,7 +108,7 @@ func (r *azureManagedControlPlaneService) reconcileKubeconfig(ctx context.Contex
 
 	// Always update credentials in case of rotation
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.kubeclient, &kubeConfigSecret, func() error {
-		if nil == kubeConfigSecret.Labels {
+		if kubeConfigSecret.Labels == nil {
 			kubeConfigSecret.Labels = make(map[string]string)
 		}
 		kubeConfigSecret.Labels["cluster.x-k8s.io/cluster-name"] = r.scope.ManagedClusterSpec().ResourceName()

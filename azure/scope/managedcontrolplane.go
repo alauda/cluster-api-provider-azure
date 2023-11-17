@@ -23,28 +23,33 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/profiles/2019-03-01/authorization/mgmt/authorization"
 	"github.com/Azure/go-autorest/autorest"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/mod/semver"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/patch"
+	"sigs.k8s.io/cluster-api/util/secret"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-azure/azure"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/asogroups"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/groups"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/managedclusters"
+	"sigs.k8s.io/cluster-api-provider-azure/azure/services/managedroleassignments"
+	"sigs.k8s.io/cluster-api-provider-azure/azure/services/managedroledefinitions"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/privateendpoints"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/subnets"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/virtualnetworks"
 	"sigs.k8s.io/cluster-api-provider-azure/util/futures"
 	"sigs.k8s.io/cluster-api-provider-azure/util/maps"
 	"sigs.k8s.io/cluster-api-provider-azure/util/tele"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util/conditions"
-	"sigs.k8s.io/cluster-api/util/patch"
-	"sigs.k8s.io/cluster-api/util/secret"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const resourceHealthWarningInitialGracePeriod = 1 * time.Hour
@@ -138,6 +143,14 @@ func (s *ManagedControlPlaneScope) ResourceGroup() string {
 		return ""
 	}
 	return s.ControlPlane.Spec.ResourceGroupName
+}
+
+// VirtualNetworkResourceGroup returns resource group of virtual network.
+func (s *ManagedControlPlaneScope) VirtualNetworkResourceGroup() string {
+	if s.ControlPlane == nil {
+		return ""
+	}
+	return s.ControlPlane.Spec.VirtualNetwork.ResourceGroup
 }
 
 // NodeResourceGroup returns the managed control plane's node resource group.
@@ -804,4 +817,46 @@ func (s *ManagedControlPlaneScope) PrivateEndpointSpecs() []azure.ResourceSpecGe
 	}
 
 	return privateEndpointSpecs
+}
+
+// RoleDefinitionSpecs returns the role definition specs.
+func (s *ManagedControlPlaneScope) RoleDefinitionSpecs() []azure.ResourceSpecGetter {
+	roleName := fmt.Sprintf("%s-%s", s.VirtualNetworkResourceGroup(), s.ClusterName())
+	scope := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s", s.SubscriptionID(), s.VirtualNetworkResourceGroup())
+	return []azure.ResourceSpecGetter{
+		&managedroledefinitions.RoleDefinitionSpec{
+			RoleDefinitionID: uuid.NewMD5(uuid.Nil, []byte(fmt.Sprintf("%s-%s-%s", s.Location(),
+				s.VirtualNetworkResourceGroup(), s.ClusterName()))).String(),
+			ResourceGroup:    s.VirtualNetworkResourceGroup(),
+			Scope:            scope,
+			RoleName:         &roleName,
+			AssignableScopes: &[]string{scope},
+			Permissions: &[]authorization.Permission{
+				{
+					Actions: &[]string{
+						"Microsoft.Network/*/read",
+						"Microsoft.Network/*/write",
+					},
+				},
+			},
+		},
+	}
+}
+
+// RoleAssignmentSpecs returns the role assignment specs.
+func (s *ManagedControlPlaneScope) RoleAssignmentSpecs(principalID *string) []azure.ResourceSpecGetter {
+	specs := s.RoleDefinitionSpecs()
+	result := make([]azure.ResourceSpecGetter, len(specs))
+	for i, spec := range specs {
+		definition, _ := spec.(*managedroledefinitions.RoleDefinitionSpec)
+		name := uuid.NewMD5(uuid.Nil, []byte(fmt.Sprintf("%s-%s-%s", s.Location(),
+			s.VirtualNetworkResourceGroup(), s.ClusterName()))).String()
+		result[i] = &managedroleassignments.RoleAssignmentSpec{
+			PrincipalID:      principalID,
+			RoleDefinitionID: fmt.Sprintf("%s/providers/Microsoft.Authorization/roleDefinitions/%s", definition.Scope, definition.RoleDefinitionID),
+			Name:             name,
+			Scope:            definition.Scope,
+		}
+	}
+	return result
 }
