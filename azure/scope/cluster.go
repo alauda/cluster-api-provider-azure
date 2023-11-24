@@ -30,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/net"
 	"k8s.io/utils/pointer"
+
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-azure/azure"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/asogroups"
@@ -1138,4 +1139,8 @@ func (s *ClusterScope) getLastAppliedSecurityRules(nsgName string) map[string]in
 		lastAppliedSecurityRules = map[string]interface{}{}
 	}
 	return lastAppliedSecurityRules
+}
+
+func (s *ClusterScope) IsResourceReservedOnDeleteCluster(resource string) bool {
+	return false
 }

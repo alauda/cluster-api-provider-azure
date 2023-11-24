@@ -40,6 +40,7 @@ type SubnetScope interface {
 	UpdateSubnetCIDRs(string, []string)
 	IsVnetManaged() bool
 	SubnetSpecs() []azure.ResourceSpecGetter
+	IsResourceReservedOnDeleteCluster(resource string) bool
 }
 
 // Service provides operations on Azure resources.
@@ -109,6 +110,11 @@ func (s *Service) Delete(ctx context.Context) error {
 
 	ctx, cancel := context.WithTimeout(ctx, reconciler.DefaultAzureServiceReconcileTimeout)
 	defer cancel()
+
+	if s.Scope.IsResourceReservedOnDeleteCluster("subnet") {
+		log.Info("Skipping subnets deletion cause subnets is need to be reserved")
+		return nil
+	}
 
 	if managed, err := s.IsManaged(ctx); err == nil && !managed {
 		log.Info("Skipping subnets deletion in custom vnet mode")

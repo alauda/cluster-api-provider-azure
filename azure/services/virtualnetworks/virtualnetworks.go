@@ -42,6 +42,7 @@ type VNetScope interface {
 	ClusterName() string
 	IsVnetManaged() bool
 	UpdateSubnetCIDRs(string, []string)
+	IsResourceReservedOnDeleteCluster(resource string) bool
 }
 
 // Service provides operations on Azure resources.
@@ -122,6 +123,11 @@ func (s *Service) Delete(ctx context.Context) error {
 
 	ctx, cancel := context.WithTimeout(ctx, reconciler.DefaultAzureServiceReconcileTimeout)
 	defer cancel()
+
+	if s.Scope.IsResourceReservedOnDeleteCluster("vpc") {
+		log.Info("Skipping VNet deletion cause VNet is need to be reserved")
+		return nil
+	}
 
 	vnetSpec := s.Scope.VNetSpec()
 	if vnetSpec == nil {

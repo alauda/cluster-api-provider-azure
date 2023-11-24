@@ -45,6 +45,7 @@ type GroupScope interface {
 	azure.AsyncStatusUpdater
 	GroupSpec() azure.ResourceSpecGetter
 	ClusterName() string
+	IsResourceReservedOnDeleteCluster(resource string) bool
 }
 
 // New creates a new service.
@@ -90,6 +91,11 @@ func (s *Service) Delete(ctx context.Context) error {
 
 	groupSpec := s.Scope.GroupSpec()
 	if groupSpec == nil {
+		return nil
+	}
+
+	if s.Scope.IsResourceReservedOnDeleteCluster("resourceGroup") {
+		log.Info("Skipping resource group deletion cause resource group is need to be reserved")
 		return nil
 	}
 
