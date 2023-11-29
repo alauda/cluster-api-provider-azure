@@ -18,7 +18,12 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
+	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+
+	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2022-03-01/containerservice"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/cluster-api/util/secret"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -78,6 +83,50 @@ func (r *azureManagedControlPlaneService) Reconcile(ctx context.Context) error {
 		return errors.Wrap(err, "failed to reconcile kubeconfig secret")
 	}
 
+	if err := r.deleteUnmanagedAgentPools(ctx); err != nil {
+		return errors.Wrap(err, "failed to delete unmanaged agent pools")
+	}
+
+	return nil
+}
+
+func (r *azureManagedControlPlaneService) deleteUnmanagedAgentPools(ctx context.Context) error {
+	ctx, log, done := tele.StartSpanWithLogger(ctx, "controllers.azureManagedControlPlaneService.deleteUnmanagedAgentPools")
+	defer done()
+	clusterName := r.scope.ManagedClusterSpec().ResourceName()
+	listOptions := []client.ListOption{
+		client.MatchingLabels(map[string]string{clusterv1.ClusterNameLabel: clusterName}),
+	}
+	managedMachinePools := &infrav1.AzureManagedMachinePoolList{}
+	if err := r.kubeclient.List(ctx, managedMachinePools, listOptions...); err != nil {
+		return fmt.Errorf("failed to list managed machine pools for cluster %s: %w", clusterName, err)
+	}
+	poolMap := make(map[string]struct{})
+	for _, pool := range managedMachinePools.Items {
+		poolMap[*pool.Spec.Name] = struct{}{}
+	}
+
+	agentPoolsClient := containerservice.NewAgentPoolsClientWithBaseURI(r.scope.BaseURI(), r.scope.SubscriptionID())
+	azure.SetAutoRestClientDefaults(&agentPoolsClient.Client, r.scope.Authorizer())
+
+	result, err := agentPoolsClient.List(ctx, r.scope.ManagedClusterSpec().ResourceGroupName(), clusterName)
+	if err != nil {
+		return errors.Wrap(err, "failed to list agent pools")
+	}
+	for result.NotDone() {
+		for _, pool := range result.Values() {
+			if _, ok := poolMap[*pool.Name]; ok {
+				continue
+			}
+			log.Info("start delete node group", "nodeGroupName", pool, "clusterName", clusterName)
+			if _, err = agentPoolsClient.Delete(ctx, r.scope.ManagedClusterSpec().ResourceGroupName(), clusterName, *pool.Name); err != nil {
+				return errors.Wrap(err, fmt.Sprintf("failed to delete agent pool %s in cluster %s", *pool.Name, clusterName))
+			}
+		}
+		if err = result.NextWithContext(ctx); err != nil {
+			return errors.Wrap(err, "failed to list agent pools")
+		}
+	}
 	return nil
 }
 
