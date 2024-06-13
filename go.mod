@@ -1,6 +1,6 @@
 module sigs.k8s.io/cluster-api-provider-azure
 
-go 1.20
+go 1.22.3
 
 require (
 	github.com/Azure/aad-pod-identity v1.8.17
@@ -201,7 +201,7 @@ replace (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace => go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.24.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc => go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.24.0
 	golang.org/x/crypto => golang.org/x/crypto v0.17.0
-	golang.org/x/net => golang.org/x/net v0.17.0
+	golang.org/x/net => golang.org/x/net v0.23.0
 	google.golang.org/grpc => google.golang.org/grpc v1.57.1
 	google.golang.org/protobuf => google.golang.org/protobuf v1.33.0
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.4.6
