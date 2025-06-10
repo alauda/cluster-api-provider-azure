@@ -161,6 +161,11 @@ func buildAgentPoolSpec(managedControlPlane *infrav1.AzureManagedControlPlane,
 		normalizedVersion = &v
 	}
 
+	if normalizedVersion == nil {
+		v := strings.TrimPrefix(managedControlPlane.Spec.Version, "v")
+		normalizedVersion = &v
+	}
+
 	replicas := int32(1)
 	if machinePool.Spec.Replicas != nil {
 		replicas = *machinePool.Spec.Replicas

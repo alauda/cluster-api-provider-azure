@@ -19,10 +19,13 @@ package scope
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/profiles/latest/authorization/mgmt/authorization"
 	"github.com/Azure/go-autorest/autorest"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/mod/semver"
 	corev1 "k8s.io/api/core/v1"
@@ -32,6 +35,8 @@ import (
 	"sigs.k8s.io/cluster-api-provider-azure/azure"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/groups"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/managedclusters"
+	"sigs.k8s.io/cluster-api-provider-azure/azure/services/managedroleassignments"
+	"sigs.k8s.io/cluster-api-provider-azure/azure/services/managedroledefinitions"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/privateendpoints"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/subnets"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/virtualnetworks"
@@ -144,6 +149,14 @@ func (s *ManagedControlPlaneScope) ResourceGroup() string {
 		return ""
 	}
 	return s.ControlPlane.Spec.ResourceGroupName
+}
+
+// VirtualNetworkResourceGroup returns resource group of virtual network.Add commentMore actions
+func (s *ManagedControlPlaneScope) VirtualNetworkResourceGroup() string {
+	if s.ControlPlane == nil {
+		return ""
+	}
+	return s.ControlPlane.Spec.VirtualNetwork.ResourceGroup
 }
 
 // NodeResourceGroup returns the managed control plane's node resource group.
@@ -292,6 +305,17 @@ func (s *ManagedControlPlaneScope) NodeNatGateway() infrav1.NatGateway {
 
 // SubnetSpecs returns the subnets specs.
 func (s *ManagedControlPlaneScope) SubnetSpecs() []azure.ResourceSpecGetter {
+	var routeTableName string
+	if s.ControlPlane.Spec.NetworkPlugin != nil && *s.ControlPlane.Spec.NetworkPlugin == "kubenet" {
+		for _, pool := range s.ManagedMachinePools {
+			if pool.InfraMachinePool == nil {
+				continue
+			}
+			if pool.InfraMachinePool.Status.Ready {
+				routeTableName = fmt.Sprintf("%s-routetable", pool.InfraMachinePool.Name)
+			}
+		}
+	}
 	return []azure.ResourceSpecGetter{
 		&subnets.SubnetSpec{
 			Name:              s.NodeSubnet().Name,
@@ -303,6 +327,7 @@ func (s *ManagedControlPlaneScope) SubnetSpecs() []azure.ResourceSpecGetter {
 			IsVNetManaged:     s.IsVnetManaged(),
 			Role:              infrav1.SubnetNode,
 			ServiceEndpoints:  s.NodeSubnet().ServiceEndpoints,
+			RouteTableName:    routeTableName,
 		},
 	}
 }
@@ -818,4 +843,46 @@ func (s *ManagedControlPlaneScope) PrivateEndpointSpecs() []azure.ResourceSpecGe
 // SetOIDCIssuerProfileStatus sets the status for the OIDC issuer profile config.
 func (s *ManagedControlPlaneScope) SetOIDCIssuerProfileStatus(oidc *infrav1.OIDCIssuerProfileStatus) {
 	s.ControlPlane.Status.OIDCIssuerProfile = oidc
+}
+
+// RoleDefinitionSpecs returns the role definition specs.
+func (s *ManagedControlPlaneScope) RoleDefinitionSpecs() []azure.ResourceSpecGetter {
+	roleName := fmt.Sprintf("%s-%s", s.VirtualNetworkResourceGroup(), s.ClusterName())
+	scope := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s", s.SubscriptionID(), s.VirtualNetworkResourceGroup())
+	return []azure.ResourceSpecGetter{
+		&managedroledefinitions.RoleDefinitionSpec{
+			RoleDefinitionID: uuid.NewMD5(uuid.Nil, []byte(fmt.Sprintf("%s-%s-%s", s.Location(),
+				s.VirtualNetworkResourceGroup(), s.ClusterName()))).String(),
+			ResourceGroup:    s.VirtualNetworkResourceGroup(),
+			Scope:            scope,
+			RoleName:         &roleName,
+			AssignableScopes: &[]string{scope},
+			Permissions: &[]authorization.Permission{
+				{
+					Actions: &[]string{
+						"Microsoft.Network/*/read",
+						"Microsoft.Network/*/write",
+					},
+				},
+			},
+		},
+	}
+}
+
+// RoleAssignmentSpecs returns the role assignment specs.
+func (s *ManagedControlPlaneScope) RoleAssignmentSpecs(principalID *string) []azure.ResourceSpecGetter {
+	specs := s.RoleDefinitionSpecs()
+	result := make([]azure.ResourceSpecGetter, len(specs))
+	for i, spec := range specs {
+		definition, _ := spec.(*managedroledefinitions.RoleDefinitionSpec)
+		name := uuid.NewMD5(uuid.Nil, []byte(fmt.Sprintf("%s-%s-%s", s.Location(),
+			s.VirtualNetworkResourceGroup(), s.ClusterName()))).String()
+		result[i] = &managedroleassignments.RoleAssignmentSpec{
+			PrincipalID:      principalID,
+			RoleDefinitionID: fmt.Sprintf("%s/providers/Microsoft.Authorization/roleDefinitions/%s", definition.Scope, definition.RoleDefinitionID),
+			Name:             name,
+			Scope:            definition.Scope,
+		}
+	}
+	return result
 }

@@ -24,6 +24,8 @@ import (
 	"sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/groups"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/managedclusters"
+	"sigs.k8s.io/cluster-api-provider-azure/azure/services/managedroleassignments"
+	"sigs.k8s.io/cluster-api-provider-azure/azure/services/managedroledefinitions"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/privateendpoints"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/resourcehealth"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/subnets"
@@ -68,6 +70,10 @@ func newAzureManagedControlPlaneReconciler(scope *scope.ManagedControlPlaneScope
 	if err != nil {
 		return nil, err
 	}
+	azureClient, err := managedclusters.NewClient(scope)
+	if err != nil {
+		return nil, err
+	}
 	return &azureManagedControlPlaneService{
 		kubeclient: scope.Client,
 		scope:      scope,
@@ -79,6 +85,8 @@ func newAzureManagedControlPlaneReconciler(scope *scope.ManagedControlPlaneScope
 			privateEndpointsSvc,
 			tagsSvc,
 			resourceHealthSvc,
+			managedroledefinitions.New(scope),
+			managedroleassignments.New(scope, azureClient),
 		},
 	}, nil
 }
@@ -146,6 +154,10 @@ func (r *azureManagedControlPlaneService) reconcileKubeconfig(ctx context.Contex
 
 	// Always update credentials in case of rotation
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.kubeclient, &kubeConfigSecret, func() error {
+		if nil == kubeConfigSecret.Labels {
+			kubeConfigSecret.Labels = make(map[string]string)
+		}
+		kubeConfigSecret.Labels["cluster.x-k8s.io/cluster-name"] = r.scope.ManagedClusterSpec().ResourceName()
 		kubeConfigSecret.Data = map[string][]byte{
 			secret.KubeconfigDataName: kubeConfigData,
 		}

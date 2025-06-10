@@ -33,13 +33,13 @@ type CredentialGetter interface {
 	GetCredentials(context.Context, string, string) ([]byte, error)
 }
 
-// azureClient contains the Azure go-sdk Client.
-type azureClient struct {
+// AzureClient contains the Azure go-sdk Client.
+type AzureClient struct {
 	managedclusters *armcontainerservice.ManagedClustersClient
 }
 
-// newClient creates a new managedclusters client from an authorizer.
-func newClient(scope ManagedClusterScope) (*azureClient, error) {
+// NewClient creates a new managedclusters client from an authorizer.
+func NewClient(scope ManagedClusterScope) (*AzureClient, error) {
 	var headers map[string]string
 	if customHeaders, ok := scope.ManagedClusterSpec().(azure.ResourceSpecGetterWithHeaders); ok {
 		headers = customHeaders.CustomHeaders()
@@ -52,11 +52,11 @@ func newClient(scope ManagedClusterScope) (*azureClient, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create armcontainerservice client factory")
 	}
-	return &azureClient{factory.NewManagedClustersClient()}, nil
+	return &AzureClient{factory.NewManagedClustersClient()}, nil
 }
 
 // Get gets a managed cluster.
-func (ac *azureClient) Get(ctx context.Context, spec azure.ResourceSpecGetter) (result interface{}, err error) {
+func (ac *AzureClient) Get(ctx context.Context, spec azure.ResourceSpecGetter) (result interface{}, err error) {
 	ctx, _, done := tele.StartSpanWithLogger(ctx, "managedclusters.azureClient.Get")
 	defer done()
 
@@ -68,7 +68,7 @@ func (ac *azureClient) Get(ctx context.Context, spec azure.ResourceSpecGetter) (
 }
 
 // GetCredentials fetches the admin kubeconfig for a managed cluster.
-func (ac *azureClient) GetCredentials(ctx context.Context, resourceGroupName, name string) ([]byte, error) {
+func (ac *AzureClient) GetCredentials(ctx context.Context, resourceGroupName, name string) ([]byte, error) {
 	ctx, _, done := tele.StartSpanWithLogger(ctx, "managedclusters.azureClient.GetCredentials")
 	defer done()
 
@@ -87,7 +87,7 @@ func (ac *azureClient) GetCredentials(ctx context.Context, resourceGroupName, na
 // CreateOrUpdateAsync creates or updates a managed cluster.
 // It sends a PUT request to Azure and if accepted without error, the func will return a Poller which can be used to track the ongoing
 // progress of the operation.
-func (ac *azureClient) CreateOrUpdateAsync(ctx context.Context, spec azure.ResourceSpecGetter, resumeToken string, parameters interface{}) (
+func (ac *AzureClient) CreateOrUpdateAsync(ctx context.Context, spec azure.ResourceSpecGetter, resumeToken string, parameters interface{}) (
 	result interface{}, poller *runtime.Poller[armcontainerservice.ManagedClustersClientCreateOrUpdateResponse], err error) {
 	ctx, log, done := tele.StartSpanWithLogger(ctx, "managedclusters.azureClient.CreateOrUpdateAsync")
 	defer done()
@@ -125,7 +125,7 @@ func (ac *azureClient) CreateOrUpdateAsync(ctx context.Context, spec azure.Resou
 // DeleteAsync deletes a managed cluster asynchronously. DeleteAsync sends a DELETE
 // request to Azure and if accepted without error, the func will return a Poller which can be used to track the ongoing
 // progress of the operation.
-func (ac *azureClient) DeleteAsync(ctx context.Context, spec azure.ResourceSpecGetter, resumeToken string) (
+func (ac *AzureClient) DeleteAsync(ctx context.Context, spec azure.ResourceSpecGetter, resumeToken string) (
 	poller *runtime.Poller[armcontainerservice.ManagedClustersClientDeleteResponse], err error) {
 	ctx, log, done := tele.StartSpanWithLogger(ctx, "managedclusters.azureClient.DeleteAsync")
 	defer done()

@@ -57,7 +57,7 @@ type Service struct {
 
 // New creates a new service.
 func New(scope ManagedClusterScope) (*Service, error) {
-	client, err := newClient(scope)
+	client, err := NewClient(scope)
 	if err != nil {
 		return nil, err
 	}
