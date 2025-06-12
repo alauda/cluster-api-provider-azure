@@ -1122,3 +1122,7 @@ func (s *ClusterScope) getLastAppliedSecurityRules(nsgName string) map[string]in
 	}
 	return lastAppliedSecurityRules
 }
+
+func (s *ClusterScope) IsResourceReservedOnDeleteCluster(resource string) bool {
+	return false
+}

@@ -52,6 +52,10 @@ func NewMockGroupScope(ctrl *gomock.Controller) *MockGroupScope {
 	return mock
 }
 
+func (m *MockGroupScope) IsResourceReservedOnDeleteCluster(resource string) bool{
+	return false
+}
+
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockGroupScope) EXPECT() *MockGroupScopeMockRecorder {
 	return m.recorder

@@ -43,6 +43,7 @@ type GroupScope interface {
 	GroupSpec() azure.ASOResourceSpecGetter
 	GetClient() client.Client
 	ClusterName() string
+	IsResourceReservedOnDeleteCluster(resource string) bool
 }
 
 // New creates a new service.
@@ -78,7 +79,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 
 // Delete deletes the resource group if it is managed by capz.
 func (s *Service) Delete(ctx context.Context) error {
-	ctx, _, done := tele.StartSpanWithLogger(ctx, "groups.Service.Delete")
+	ctx, log, done := tele.StartSpanWithLogger(ctx, "groups.Service.Delete")
 	defer done()
 
 	ctx, cancel := context.WithTimeout(ctx, reconciler.DefaultAzureServiceReconcileTimeout)
@@ -86,6 +87,11 @@ func (s *Service) Delete(ctx context.Context) error {
 
 	groupSpec := s.Scope.GroupSpec()
 	if groupSpec == nil {
+		return nil
+	}
+
+	if s.Scope.IsResourceReservedOnDeleteCluster("resourceGroup") {
+		log.Info("Skipping resource group deletion cause resource group is need to be reserved")
 		return nil
 	}
 

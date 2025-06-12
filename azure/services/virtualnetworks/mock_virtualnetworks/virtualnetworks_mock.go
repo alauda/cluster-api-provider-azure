@@ -53,6 +53,10 @@ func NewMockVNetScope(ctrl *gomock.Controller) *MockVNetScope {
 	return mock
 }
 
+func (m *MockVNetScope) IsResourceReservedOnDeleteCluster(resource string) bool{
+	return false
+}
+
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockVNetScope) EXPECT() *MockVNetScopeMockRecorder {
 	return m.recorder

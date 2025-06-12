@@ -58,6 +58,10 @@ func (m *MockSubnetScope) EXPECT() *MockSubnetScopeMockRecorder {
 	return m.recorder
 }
 
+func (m *MockSubnetScope) IsResourceReservedOnDeleteCluster(resource string) bool{
+	return false
+}
+
 // Authorizer mocks base method.
 func (m *MockSubnetScope) Authorizer() autorest.Authorizer {
 	m.ctrl.T.Helper()

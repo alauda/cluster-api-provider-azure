@@ -100,7 +100,15 @@ func (ac *azureClient) Result(ctx context.Context, futureData azureautorest.Futu
 func (ac *azureClient) DeleteAsync(ctx context.Context, spec azure.ResourceSpecGetter, resumeToken string) (*runtime.Poller[armauthorization.RoleAssignmentsClientDeleteResponse], error) {
 	ctx, log, done := tele.StartSpanWithLogger(ctx, "roleassignments.AzureClient.DeleteAsync")
 	defer done()
-	_, err := ac.roleassignments.Delete(ctx, spec.OwnerResourceName(), spec.ResourceName())
+	_, err := ac.roleassignments.Get(ctx, spec.OwnerResourceName(), spec.ResourceName())
+	if err != nil {
+		if azure.ResourceNotFound(err) {
+			log.Info("get resource assignment failed", "roleAssignmentName", spec.ResourceName(), "scope", spec.OwnerResourceName())
+			return nil, nil
+		}
+		return nil, err
+	}
+	_, err = ac.roleassignments.Delete(ctx, spec.OwnerResourceName(), spec.ResourceName())
 	if err != nil {
 		log.Error(err, "delete role assignment failed", "name", spec.ResourceName())
 		return nil, err
