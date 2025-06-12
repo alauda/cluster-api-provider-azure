@@ -45,6 +45,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
+const (
+	reconcileAfterDurationForHeath = time.Second * 60
+	reconcileAfterDurationForError = time.Second * 10
+)
+
 // AzureManagedControlPlaneReconciler reconciles an AzureManagedControlPlane object.
 type AzureManagedControlPlaneReconciler struct {
 	client.Client
@@ -115,7 +120,7 @@ func (amcpr *AzureManagedControlPlaneReconciler) SetupWithManager(ctx context.Co
 // +kubebuilder:rbac:groups=resources.azure.com,resources=resourcegroups/status,verbs=get;list;watch
 
 // Reconcile idempotently gets, creates, and updates a managed control plane.
-func (amcpr *AzureManagedControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
+func (amcpr *AzureManagedControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, reterr error) {
 	ctx, cancel := context.WithTimeout(ctx, reconciler.DefaultedLoopTimeout(amcpr.ReconcileTimeout))
 	defer cancel()
 
@@ -125,6 +130,15 @@ func (amcpr *AzureManagedControlPlaneReconciler) Reconcile(ctx context.Context, 
 		tele.KVP("kind", "AzureManagedControlPlane"),
 	)
 	defer done()
+
+	defer func() {
+		if reterr != nil {
+			log.Error(reterr, "reconcile control plane failed")
+			res.RequeueAfter = reconcileAfterDurationForError
+		} else {
+			res.RequeueAfter = reconcileAfterDurationForHeath
+		}
+	}()
 
 	// Fetch the AzureManagedControlPlane instance
 	azureControlPlane := &infrav1.AzureManagedControlPlane{}
