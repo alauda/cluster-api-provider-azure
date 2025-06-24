@@ -69,9 +69,13 @@ ifneq ($(abspath $(ROOT_DIR)),$(GOPATH)/src/sigs.k8s.io/cluster-api-provider-azu
 endif
 
 # Binaries.
-CONTROLLER_GEN_VER := v0.9.2
+CONTROLLER_GEN_VER := v0.17.3
 CONTROLLER_GEN_BIN := controller-gen
 CONTROLLER_GEN := $(TOOLS_BIN_DIR)/$(CONTROLLER_GEN_BIN)-$(CONTROLLER_GEN_VER)
+
+OPENAPI_GEN_VER := master
+OPENAPI_GEN_BIN := openapi-gen
+OPENAPI_GEN := $(TOOLS_BIN_DIR)/$(OPENAPI_GEN_BIN)-$(OPENAPI_GEN_VER)
 
 CONVERSION_GEN_VER := v0.23.1
 CONVERSION_GEN_BIN := conversion-gen
@@ -454,8 +458,14 @@ generate: ## Generate go related targets, manifests, flavors, e2e-templates and 
 	$(MAKE) generate-addons
 	$(MAKE) generate-aso-crds
 
+
 .PHONY: generate-go
-generate-go: $(CONTROLLER_GEN) $(MOCKGEN) $(CONVERSION_GEN) ## Runs Go related generate targets.
+generate-go: $(CONTROLLER_GEN) $(MOCKGEN) $(CONVERSION_GEN) $(OPENAPI_GEN) ## Runs Go related generate targets.
+	$(OPENAPI_GEN) \
+		--output-dir "./generated/openapi" \
+		--output-pkg "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1" \
+		--go-header-file "./hack/boilerplate/boilerplate.generatego.txt" \
+		./api/v1beta1
 	$(CONTROLLER_GEN) \
 		paths=./api/... \
 		paths=./$(EXP_DIR)/api/... \
@@ -769,6 +779,7 @@ kind-reset: ## Destroys the "capz" and "capz-e2e" kind clusters.
 
 conversion-verifier: $(CONVERSION_VERIFIER) go.mod go.sum ## Build a local copy of CAPI's conversion verifier.
 controller-gen: $(CONTROLLER_GEN) ## Build a local copy of controller-gen.
+openapi-gen: $(OPENAPI_GEN) ## Build a local copy of openapi-gen.
 conversion-gen: $(CONVERSION_GEN) ## Build a local copy of conversion-gen.
 envsubst: $(ENVSUBST) ## Build a local copy of envsubst.
 golangci-lint: $(GOLANGCI_LINT) ## Build a local copy of golang ci-lint.
@@ -793,6 +804,9 @@ $(CONTROLLER_GEN): ## Build controller-gen from tools folder.
 
 $(CONVERSION_GEN): ## Build conversion-gen from tools folder.
 	GOBIN=$(TOOLS_BIN_DIR) $(GO_INSTALL) k8s.io/code-generator/cmd/conversion-gen $(CONVERSION_GEN_BIN) $(CONVERSION_GEN_VER)
+
+$(OPENAPI_GEN): ## Build openapi-gen from tools folder.
+	GOBIN=$(TOOLS_BIN_DIR) $(GO_INSTALL) k8s.io/kube-openapi/cmd/openapi-gen $(OPENAPI_GEN_BIN) $(OPENAPI_GEN_VER)
 
 $(ENVSUBST): ## Build envsubst from tools folder.
 	GOBIN=$(TOOLS_BIN_DIR) $(GO_INSTALL) github.com/drone/envsubst/v2/cmd/envsubst $(ENVSUBST_BIN) $(ENVSUBST_VER)

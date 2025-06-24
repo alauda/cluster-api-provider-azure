@@ -58,10 +58,6 @@ func (m *MockSubnetScope) EXPECT() *MockSubnetScopeMockRecorder {
 	return m.recorder
 }
 
-func (m *MockSubnetScope) IsResourceReservedOnDeleteCluster(resource string) bool{
-	return false
-}
-
 // Authorizer mocks base method.
 func (m *MockSubnetScope) Authorizer() autorest.Authorizer {
 	m.ctrl.T.Helper()
@@ -170,6 +166,20 @@ func (m *MockSubnetScope) HashKey() string {
 func (mr *MockSubnetScopeMockRecorder) HashKey() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HashKey", reflect.TypeOf((*MockSubnetScope)(nil).HashKey))
+}
+
+// IsResourceReservedOnDeleteCluster mocks base method.
+func (m *MockSubnetScope) IsResourceReservedOnDeleteCluster(resource string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsResourceReservedOnDeleteCluster", resource)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsResourceReservedOnDeleteCluster indicates an expected call of IsResourceReservedOnDeleteCluster.
+func (mr *MockSubnetScopeMockRecorder) IsResourceReservedOnDeleteCluster(resource any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsResourceReservedOnDeleteCluster", reflect.TypeOf((*MockSubnetScope)(nil).IsResourceReservedOnDeleteCluster), resource)
 }
 
 // IsVnetManaged mocks base method.

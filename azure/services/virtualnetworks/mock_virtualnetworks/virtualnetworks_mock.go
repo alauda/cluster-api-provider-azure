@@ -53,10 +53,6 @@ func NewMockVNetScope(ctrl *gomock.Controller) *MockVNetScope {
 	return mock
 }
 
-func (m *MockVNetScope) IsResourceReservedOnDeleteCluster(resource string) bool{
-	return false
-}
-
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockVNetScope) EXPECT() *MockVNetScopeMockRecorder {
 	return m.recorder
@@ -184,6 +180,20 @@ func (m *MockVNetScope) HashKey() string {
 func (mr *MockVNetScopeMockRecorder) HashKey() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HashKey", reflect.TypeOf((*MockVNetScope)(nil).HashKey))
+}
+
+// IsResourceReservedOnDeleteCluster mocks base method.
+func (m *MockVNetScope) IsResourceReservedOnDeleteCluster(resource string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsResourceReservedOnDeleteCluster", resource)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsResourceReservedOnDeleteCluster indicates an expected call of IsResourceReservedOnDeleteCluster.
+func (mr *MockVNetScopeMockRecorder) IsResourceReservedOnDeleteCluster(resource any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsResourceReservedOnDeleteCluster", reflect.TypeOf((*MockVNetScope)(nil).IsResourceReservedOnDeleteCluster), resource)
 }
 
 // IsVnetManaged mocks base method.

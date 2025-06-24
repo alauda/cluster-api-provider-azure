@@ -52,10 +52,6 @@ func NewMockGroupScope(ctrl *gomock.Controller) *MockGroupScope {
 	return mock
 }
 
-func (m *MockGroupScope) IsResourceReservedOnDeleteCluster(resource string) bool{
-	return false
-}
-
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockGroupScope) EXPECT() *MockGroupScopeMockRecorder {
 	return m.recorder
@@ -127,6 +123,20 @@ func (m *MockGroupScope) GroupSpec() azure.ASOResourceSpecGetter {
 func (mr *MockGroupScopeMockRecorder) GroupSpec() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GroupSpec", reflect.TypeOf((*MockGroupScope)(nil).GroupSpec))
+}
+
+// IsResourceReservedOnDeleteCluster mocks base method.
+func (m *MockGroupScope) IsResourceReservedOnDeleteCluster(resource string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsResourceReservedOnDeleteCluster", resource)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsResourceReservedOnDeleteCluster indicates an expected call of IsResourceReservedOnDeleteCluster.
+func (mr *MockGroupScopeMockRecorder) IsResourceReservedOnDeleteCluster(resource any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsResourceReservedOnDeleteCluster", reflect.TypeOf((*MockGroupScope)(nil).IsResourceReservedOnDeleteCluster), resource)
 }
 
 // SetLongRunningOperationState mocks base method.
