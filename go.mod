@@ -174,7 +174,6 @@ require (
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
-	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240102182953-50ed04b92917 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240102182953-50ed04b92917 // indirect
 	google.golang.org/grpc v1.61.1 // indirect
@@ -207,6 +206,7 @@ replace (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc => go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.24.0
 	golang.org/x/crypto => golang.org/x/crypto v0.35.0
 	golang.org/x/net => golang.org/x/net v0.38.0
+	golang.org/x/oauth2 => golang.org/x/oauth2 v0.27.0
 	google.golang.org/grpc => google.golang.org/grpc v1.57.1
 	google.golang.org/protobuf => google.golang.org/protobuf v1.33.0
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.4.6
